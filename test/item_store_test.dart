@@ -203,6 +203,27 @@ void main() {
     expect(arScaleFor(item, android: false), closeTo(0.2, 1e-9));
   });
 
+  test('AR model URIs match what each platform loader expects', () {
+    final store = newStore();
+    final item = ArItem(
+      id: 'x',
+      name: 'x',
+      kind: ItemKind.menu,
+      status: ModelStatus.ready,
+      createdAt: DateTime(2026),
+      localModelPath: 'models/x.glb',
+    );
+    // SceneView reads the file system only for file:// URIs.
+    expect(
+      arUriFor(store, item, android: true),
+      Uri.file('${docs.path}/models/x.glb').toString(),
+    );
+    expect(arUriFor(store, item, android: true), startsWith('file:///'));
+    // iOS resolves the uri relative to the Documents directory.
+    expect(arUriFor(store, item, android: false), 'models/x.glb');
+    store.dispose();
+  });
+
   test('items survive a JSON round trip', () {
     final item = ArItem(
       id: 'id',

@@ -34,10 +34,12 @@ double arScaleFor(ArItem item, {required bool android}) {
 }
 
 /// The plugin resolves local GLBs differently per platform: iOS appends the
-/// uri to the Documents directory, Android loads the path as given.
+/// uri to the Documents directory, while Android hands it to SceneView, which
+/// only reads the file system for `file://` URIs (a bare path is looked up
+/// in the APK's assets and fails).
 String arUriFor(ItemStore store, ArItem item, {required bool android}) {
   final relative = item.localModelPath!;
-  return android ? store.absolutePath(relative) : relative;
+  return android ? Uri.file(store.absolutePath(relative)).toString() : relative;
 }
 
 /// Opens the AR viewer with a quick fade, which is lighter than a slide while
