@@ -25,6 +25,7 @@ class ArItem {
     this.description = '',
     this.price,
     this.remoteModelUrl,
+    this.assetModelPath,
     this.localModelPath,
     this.thumbnailPath,
     this.scanJobId,
@@ -47,6 +48,10 @@ class ArItem {
   /// [localModelPath] the first time it is shown in AR.
   final String? remoteModelUrl;
 
+  /// GLB bundled with the app (e.g. `assets/models/avocado.glb`). Preferred
+  /// over [remoteModelUrl] because it needs no network and is pre-optimized.
+  final String? assetModelPath;
+
   /// GLB path relative to the app documents directory, e.g. `models/<id>.glb`.
   final String? localModelPath;
 
@@ -68,7 +73,9 @@ class ArItem {
   bool get isOnMenu => kind == ItemKind.menu;
   bool get canShowInAr =>
       status == ModelStatus.ready &&
-      (localModelPath != null || remoteModelUrl != null);
+      (localModelPath != null ||
+          assetModelPath != null ||
+          remoteModelUrl != null);
 
   ArItem copyWith({
     String? name,
@@ -78,7 +85,9 @@ class ArItem {
     ItemKind? kind,
     ModelStatus? status,
     String? remoteModelUrl,
+    String? assetModelPath,
     String? localModelPath,
+    bool clearLocalModel = false,
     String? thumbnailPath,
     String? scanJobId,
     bool clearScanJobId = false,
@@ -96,10 +105,15 @@ class ArItem {
       kind: kind ?? this.kind,
       status: status ?? this.status,
       remoteModelUrl: remoteModelUrl ?? this.remoteModelUrl,
-      localModelPath: localModelPath ?? this.localModelPath,
+      assetModelPath: assetModelPath ?? this.assetModelPath,
+      localModelPath: clearLocalModel
+          ? null
+          : (localModelPath ?? this.localModelPath),
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
       scanJobId: clearScanJobId ? null : (scanJobId ?? this.scanJobId),
-      modelExtent: modelExtent ?? this.modelExtent,
+      modelExtent: clearLocalModel
+          ? modelExtent
+          : (modelExtent ?? this.modelExtent),
       displaySize: displaySize ?? this.displaySize,
       error: clearError ? null : (error ?? this.error),
     );
@@ -114,6 +128,7 @@ class ArItem {
     'status': status.name,
     'createdAt': createdAt.toIso8601String(),
     'remoteModelUrl': remoteModelUrl,
+    'assetModelPath': assetModelPath,
     'localModelPath': localModelPath,
     'thumbnailPath': thumbnailPath,
     'scanJobId': scanJobId,
@@ -134,6 +149,7 @@ class ArItem {
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
       remoteModelUrl: json['remoteModelUrl'] as String?,
+      assetModelPath: json['assetModelPath'] as String?,
       localModelPath: json['localModelPath'] as String?,
       thumbnailPath: json['thumbnailPath'] as String?,
       scanJobId: json['scanJobId'] as String?,
@@ -154,6 +170,7 @@ class ArItem {
       status: ModelStatus.ready,
       createdAt: DateTime.now(),
       remoteModelUrl: json['modelUrl'] as String?,
+      assetModelPath: json['modelAsset'] as String?,
       displaySize: (json['displaySize'] as num?)?.toDouble() ?? 0.25,
     );
   }

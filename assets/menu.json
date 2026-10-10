@@ -4,6 +4,7 @@
     "name": "Avocado Toast",
     "description": "Smashed avocado on sourdough with chili flakes and lime.",
     "price": 8.5,
+    "modelAsset": "assets/models/avocado.glb",
     "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Avocado/glTF-Binary/Avocado.glb",
     "displaySize": 0.12
   },
@@ -12,6 +13,7 @@
     "name": "Sparkling Water",
     "description": "Chilled mineral water, 500 ml.",
     "price": 2.5,
+    "modelAsset": "assets/models/water_bottle.glb",
     "modelUrl": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/WaterBottle/glTF-Binary/WaterBottle.glb",
     "displaySize": 0.22
   }

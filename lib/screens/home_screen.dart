@@ -22,11 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ItemStore get store => widget.store;
 
   void _openAr(ArItem item) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ArViewerScreen(store: store, initialItem: item),
-      ),
-    );
+    Navigator.of(context).push(arViewerRoute(store, item));
   }
 
   void _openDetails(ArItem item) {
@@ -42,8 +38,9 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
     ).push<String>(MaterialPageRoute(builder: (_) => ScanScreen(store: store)));
     if (message != null && mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -69,20 +66,32 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
             ],
           ),
-          body: RefreshIndicator(
-            onRefresh: store.refreshPending,
-            child: items.isEmpty
-                ? _EmptyState(onMenu: onMenu)
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
-                    itemCount: items.length,
-                    itemBuilder: (context, i) => ItemTile(
-                      store: store,
-                      item: items[i],
-                      onTap: () => _openDetails(items[i]),
-                      onViewInAr: () => _openAr(items[i]),
-                    ),
-                  ),
+          // Both tabs stay alive so switching is instant and keeps scroll.
+          body: IndexedStack(
+            index: _tab,
+            children: [
+              for (final (tabItems, menu) in [
+                (store.menu, true),
+                (store.scans, false),
+              ])
+                RefreshIndicator(
+                  onRefresh: store.refreshPending,
+                  child: tabItems.isEmpty
+                      ? _EmptyState(onMenu: menu)
+                      : ListView.builder(
+                          key: PageStorageKey(menu ? 'menu' : 'scans'),
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
+                          itemCount: tabItems.length,
+                          itemBuilder: (context, i) => ItemTile(
+                            key: ValueKey(tabItems[i].id),
+                            store: store,
+                            item: tabItems[i],
+                            onTap: () => _openDetails(tabItems[i]),
+                            onViewInAr: () => _openAr(tabItems[i]),
+                          ),
+                        ),
+                ),
+            ],
           ),
           floatingActionButton: onMenu
               ? null

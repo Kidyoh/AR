@@ -14,22 +14,40 @@ class ItemThumbnail extends StatelessWidget {
     required this.store,
     required this.item,
     this.size = 56,
+    this.hero = false,
   });
 
   final ItemStore store;
   final ArItem item;
   final double size;
 
+  /// Fly the thumbnail between the list and the detail page.
+  final bool hero;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final thumb = item.thumbnailPath;
-    return ClipRRect(
+    // Decode at display size: full-size camera photos make lists stutter.
+    final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
+    final child = ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: SizedBox.square(
         dimension: size,
         child: thumb != null
-            ? Image.file(File(store.absolutePath(thumb)), fit: BoxFit.cover)
+            ? Image.file(
+                File(store.absolutePath(thumb)),
+                fit: BoxFit.cover,
+                cacheWidth: cacheSize,
+                gaplessPlayback: true,
+                frameBuilder: (context, child, frame, sync) => sync
+                    ? child
+                    : AnimatedOpacity(
+                        opacity: frame == null ? 0 : 1,
+                        duration: const Duration(milliseconds: 200),
+                        child: child,
+                      ),
+              )
             : ColoredBox(
                 color: scheme.secondaryContainer,
                 child: Icon(
@@ -40,6 +58,7 @@ class ItemThumbnail extends StatelessWidget {
               ),
       ),
     );
+    return hero ? Hero(tag: 'thumb-${item.id}', child: child) : child;
   }
 }
 
@@ -73,7 +92,7 @@ class ItemTile extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        leading: ItemThumbnail(store: store, item: item),
+        leading: ItemThumbnail(store: store, item: item, hero: true),
         title: Text(item.name),
         subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
         onTap: onTap,

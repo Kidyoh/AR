@@ -19,7 +19,7 @@ Scan screen ──photos──▶ ReconstructionService ──GLB──▶ ItemS
 | `lib/screens/scan_screen.dart` | Guided capture: manual shutter or auto-capture every 1.2 s, with tips for each lap around the object. Needs at least 20 photos; about 45 are recommended. |
 | `lib/screens/ar_viewer_screen.dart` | Full in-app AR: horizontal plane detection, tap to place, pan/rotate, an item picker, and clear |
 | `lib/screens/item_detail_screen.dart` | Item details, edit (name, price, menu toggle, size in AR), delete |
-| `lib/data/item_store.dart` | Local storage. Seeds the menu from `assets/menu.json`, polls running scans, downloads and caches models |
+| `lib/data/item_store.dart` | Local storage. Seeds the menu from `assets/menu.json`, polls running scans, prefetches and caches models |
 | `lib/services/kiri_reconstruction_service.dart` | KIRI Engine API client: upload photos → poll status → download zip → extract `.glb` |
 | `lib/services/glb_bounds.dart` | Reads a GLB's real-world size, so every model appears at the size you choose (e.g. "12 cm") on both platforms |
 
@@ -48,10 +48,21 @@ Edit `assets/menu.json`. The seed only loads on first launch, so reinstall the a
 
 Each entry needs:
 - `id`, `name`, `description`, `price`
-- `modelUrl`: a public `.glb`
+- `modelAsset`: a `.glb` bundled in `assets/models/` (best: no download, instant AR), and/or
+- `modelUrl`: a public `.glb`, used when there is no bundled copy
 - `displaySize`: the longest side in AR, in meters
 
 The two sample dishes use Khronos glTF sample models as placeholders. Replace them with your own dish models, or scan real dishes in the app and tap **Add to menu**.
+
+### Keeping AR smooth
+Model size is the biggest factor in how smoothly AR runs: textures are decoded the moment a model is placed. Keep menu models under about 1 MB, with textures at 1024 px or smaller, saved as JPEG. The bundled samples went from 8–9 MB to 0.2–0.4 MB with [glTF Transform](https://gltf-transform.dev/):
+
+```bash
+npx @gltf-transform/cli resize in.glb tmp.glb --width 1024 --height 1024
+npx @gltf-transform/cli jpeg tmp.glb out.glb --formats png --quality 85
+```
+
+The app also prepares every model in the background at startup, so opening AR doesn't wait. New scans request 1K textures from KIRI for the same reason.
 
 ## Tips for good scans
 - Use even, diffuse light, and a plain, non-reflective surface under the object.

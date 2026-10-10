@@ -79,7 +79,12 @@ class ItemDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             children: [
               Center(
-                child: ItemThumbnail(store: store, item: item, size: 200),
+                child: ItemThumbnail(
+                  store: store,
+                  item: item,
+                  size: 200,
+                  hero: true,
+                ),
               ),
               const SizedBox(height: 20),
               Text(item.name, style: text.headlineSmall),
@@ -96,12 +101,8 @@ class ItemDetailScreen extends StatelessWidget {
               const SizedBox(height: 20),
               FilledButton.icon(
                 onPressed: item.canShowInAr
-                    ? () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              ArViewerScreen(store: store, initialItem: item),
-                        ),
-                      )
+                    ? () =>
+                          Navigator.of(context).push(arViewerRoute(store, item))
                     : null,
                 icon: const Icon(Icons.view_in_ar),
                 label: const Text('View in AR'),

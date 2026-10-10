@@ -54,7 +54,8 @@ class KiriReconstructionService implements ReconstructionService {
           ..headers.addAll(_auth)
           ..fields.addAll({
             'modelQuality': '1', // medium
-            'textureQuality': '1', // 2K
+            'textureQuality':
+                '2', // 1K: lighter models load and render smoother in AR
             'fileFormat': 'glb',
             'isMask': '1', // auto-mask the object out of the background
             'textureSmoothing': '0',
@@ -78,8 +79,9 @@ class KiriReconstructionService implements ReconstructionService {
   @override
   Future<ReconstructionStatus> status(String jobId) async {
     final response = await _client.get(
-      Uri.parse('$_base/model/getStatus')
-          .replace(queryParameters: {'serialize': jobId}),
+      Uri.parse(
+        '$_base/model/getStatus',
+      ).replace(queryParameters: {'serialize': jobId}),
       headers: _auth,
     );
     return switch (_unwrap(response)['status']) {
@@ -98,8 +100,9 @@ class KiriReconstructionService implements ReconstructionService {
   @override
   Future<void> downloadModel(String jobId, File destination) async {
     final response = await _client.get(
-      Uri.parse('$_base/model/getModelZip')
-          .replace(queryParameters: {'serialize': jobId}),
+      Uri.parse(
+        '$_base/model/getModelZip',
+      ).replace(queryParameters: {'serialize': jobId}),
       headers: _auth,
     );
     final url = _unwrap(response)['modelUrl'];

@@ -12,13 +12,19 @@ import 'package:http/testing.dart';
 
 import 'glb_test_utils.dart';
 
+String p(Directory dir, String relative) => '${dir.path}/$relative';
+
 class FakeAssets extends CachingAssetBundle {
   FakeAssets(this.files);
-  final Map<String, String> files;
+  final Map<String, Object> files;
 
   @override
-  Future<ByteData> load(String key) async =>
-      ByteData.sublistView(Uint8List.fromList(utf8.encode(files[key]!)));
+  Future<ByteData> load(String key) async {
+    final file = files[key];
+    if (file == null) throw StateError('Missing asset $key');
+    final bytes = file is String ? utf8.encode(file) : file as List<int>;
+    return ByteData.sublistView(Uint8List.fromList(bytes));
+  }
 }
 
 class FakeReconstruction implements ReconstructionService {
@@ -215,5 +221,127 @@ void main() {
     );
     final copy = ArItem.fromJson(jsonDecode(jsonEncode(item.toJson())));
     expect(copy.toJson(), item.toJson());
+  });
+
+  group('model loading', () {
+    final bundled = cubeGlb([
+      {
+        'scale': [0.1, 0.1, 0.1],
+        'mesh': 0,
+      },
+    ]);
+    final bundledSeed = jsonEncode([
+      {
+        'id': 'menu-1',
+        'name': 'Soup',
+        'modelAsset': 'assets/models/soup.glb',
+        'modelUrl': 'https://models.example/soup.glb',
+      },
+    ]);
+
+    ItemStore bundledStore({required http.Client client}) => ItemStore(
+      documentsDir: docs,
+      assets: FakeAssets({
+        'assets/menu.json': bundledSeed,
+        'assets/models/soup.glb': bundled,
+      }),
+      client: client,
+    );
+
+    test('bundled models are copied without touching the network', () async {
+      final store = bundledStore(
+        client: MockClient((_) async => fail('no network expected')),
+      );
+      await store.load();
+
+      final ready = await store.ensureLocalModel(store.menu.single);
+
+      expect(
+        File(store.absolutePath(ready.localModelPath!)).readAsBytesSync(),
+        bundled,
+      );
+      expect(ready.modelExtent, closeTo(0.1, 1e-9));
+      store.dispose();
+    });
+
+    test(
+      'concurrent requests share one download and report progress',
+      () async {
+        var downloads = 0;
+        final store = newStore(
+          client: MockClient.streaming((request, _) async {
+            downloads++;
+            final bytes = cubeGlb([
+              {'mesh': 0},
+            ]);
+            return http.StreamedResponse(
+              Stream.fromIterable([bytes.sublist(0, 10), bytes.sublist(10)]),
+              200,
+              contentLength: bytes.length,
+            );
+          }),
+        );
+        await store.load();
+        final progress = <double>[];
+
+        final results = await Future.wait([
+          store.ensureLocalModel(store.menu.single, onProgress: progress.add),
+          store.ensureLocalModel(store.menu.single),
+        ]);
+
+        expect(downloads, 1);
+        expect(results[0].localModelPath, results[1].localModelPath);
+        expect(progress, isNotEmpty);
+        expect(progress.last, 1.0);
+        expect(
+          File(store.absolutePath('models/menu-1.glb.part')).existsSync(),
+          isFalse,
+        );
+        store.dispose();
+      },
+    );
+
+    test('older installs switch to the bundled model', () async {
+      // Saved by a version that downloaded the large remote model.
+      final old = ArItem.fromMenuSeed({
+        'id': 'menu-1',
+        'name': 'My soup',
+        'modelUrl': 'https://models.example/soup.glb',
+      }).copyWith(localModelPath: 'models/menu-1.glb', modelExtent: 5);
+      final oldModel = File(p(docs, 'models/menu-1.glb'));
+      await oldModel.create(recursive: true);
+      await File(
+        p(docs, 'items.json'),
+      ).writeAsString(jsonEncode([old.toJson()]));
+
+      final store = bundledStore(
+        client: MockClient((_) async => fail('no network expected')),
+      );
+      await store.load();
+      final migrated = store.menu.single;
+
+      expect(migrated.name, 'My soup');
+      expect(migrated.assetModelPath, 'assets/models/soup.glb');
+      expect(migrated.localModelPath, isNull);
+      expect(migrated.modelExtent, isNull);
+
+      final ready = await store.ensureLocalModel(migrated);
+      expect(ready.modelExtent, closeTo(0.1, 1e-9));
+      store.dispose();
+    });
+
+    test('prefetch prepares every viewable model', () async {
+      final store = bundledStore(
+        client: MockClient((_) async => fail('no network expected')),
+      );
+      await store.load();
+
+      await store.prefetchModels();
+
+      final item = store.menu.single;
+      expect(item.localModelPath, isNotNull);
+      expect(item.modelExtent, isNotNull);
+      store.dispose();
+    });
   });
 }
